@@ -65,3 +65,31 @@ func registerHandler(s *state, cmd command) error {
 
 	return nil
 }
+
+func resetHandler(s *state, cmd command) error {
+	err := s.db.DeleteAllUsers(context.Background())
+	if err != nil {
+		os.Exit(1)
+		return err
+	}
+	fmt.Println("database reset successful")
+	os.Exit(0)
+	return nil
+}
+
+func listUsersHandler(s *state, cmd command) error {
+	users, err := s.db.ListUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		line := "* %s"
+		if u.Name == s.config.CurrentUserName {
+			line += " (current)"
+		}
+		fmt.Printf(line, u.Name)
+		fmt.Print("\n")
+	}
+
+	return nil
+}
