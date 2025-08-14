@@ -7,6 +7,7 @@ import (
 
 func loginHandler(s *state, cmd command) error {
 	argsLength := len(cmd.args)
+
 	if argsLength == 0 {
 		return errors.New("please provide an argument")
 	}
