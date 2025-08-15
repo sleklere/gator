@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sleklere/gator/internal/database"
+	"github.com/sleklere/gator/internal/feed"
 )
 
 func loginHandler(s *state, cmd command) error {
@@ -90,6 +91,60 @@ func listUsersHandler(s *state, cmd command) error {
 		fmt.Printf(line, u.Name)
 		fmt.Print("\n")
 	}
+
+	return nil
+}
+
+func aggHandler(s *state, cmd command) error {
+	feedURL := "https://www.wagslane.dev/index.xml"
+	feed, err := feed.FetchFeed(context.Background(), feedURL)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("-----------------------")
+	fmt.Print(feed)
+
+	return nil
+}
+
+func addFeedHandler(s *state, cmd command) error {
+	argsLength := len(cmd.args)
+
+	if argsLength < 2 {
+		return errors.New("please provide a name and a url for the feed")
+	}
+
+	if argsLength > 2 {
+		fmt.Printf("ignoring arguments after %s\n", cmd.args[1])
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	params := database.CreateFeedParams{
+		ID: uuid.New(),
+		Name: cmd.args[0],
+		Url: cmd.args[1],
+		UserID: user.ID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	feed, err := s.db.CreateFeed(context.Background(), params)
+	if err != nil {
+		return err
+		// fmt.Printf("error creating feed: %v\n", err)
+		// os.Exit(1)
+	}
+
+	fmt.Printf("✓ feed created successfully!\n")
+	fmt.Printf("  Name: %s\n", feed.Name)
+	fmt.Printf("  URL: %s\n", feed.Url)
+	fmt.Printf("  ID: %s\n", feed.ID)
+	fmt.Printf("  User ID: %s\n", feed.UserID)
 
 	return nil
 }
