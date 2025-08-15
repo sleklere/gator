@@ -96,16 +96,20 @@ func listUsersHandler(s *state, cmd command) error {
 }
 
 func aggHandler(s *state, cmd command) error {
-	feedURL := "https://www.wagslane.dev/index.xml"
-	feed, err := feed.FetchFeed(context.Background(), feedURL)
+	if len(cmd.args) != 1 {
+		return errors.New("please just provide one argument (time_between_reqs)")
+	}
+	timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("-----------------------")
-	fmt.Print(feed)
+	fmt.Printf("collecting feeds every %s\n", cmd.args[0])
 
-	return nil
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
 }
 
 func addFeedHandler(s *state, cmd command, user database.User) error {
@@ -233,4 +237,28 @@ func createFeedFollowByUrl(s *state, url string, user database.User) (database.C
 	}
 
 	return feedFollow, nil
+}
+
+
+func scrapeFeeds(s *state) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return err
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return err
+	}
+
+	feedRes, err := feed.FetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range feedRes.Channel.Item {
+		fmt.Println(item.Title)
+	}
+
+	return nil
 }
