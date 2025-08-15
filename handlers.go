@@ -136,8 +136,6 @@ func addFeedHandler(s *state, cmd command) error {
 	feed, err := s.db.CreateFeed(context.Background(), params)
 	if err != nil {
 		return err
-		// fmt.Printf("error creating feed: %v\n", err)
-		// os.Exit(1)
 	}
 
 	fmt.Printf("✓ feed created successfully!\n")
@@ -145,6 +143,11 @@ func addFeedHandler(s *state, cmd command) error {
 	fmt.Printf("  URL: %s\n", feed.Url)
 	fmt.Printf("  ID: %s\n", feed.ID)
 	fmt.Printf("  User ID: %s\n", feed.UserID)
+
+	_, err = createFeedFollowByUrl(s, feed.Url)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -164,4 +167,65 @@ func listFeedsHandler(s *state, cmd command) error {
 	}
 
 	return nil
+}
+
+func followHandler(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return errors.New("please just provide one argument (the feed's url)")
+	}
+
+	feedFollow, err := createFeedFollowByUrl(s, cmd.args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("user '%s' is now following feed '%s'\n", feedFollow.UserName, feedFollow.FeedName)
+
+	return nil
+}
+
+func followingHandler(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	follows, err := s.db.GetFeedFollowsByUser(context.Background(), user.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range follows {
+		fmt.Printf("user: %s, feed name: %s, feed url: %s\n", f.UserName, f.Url, f.Name)
+	}
+
+	return nil
+}
+
+func createFeedFollowByUrl(s *state, url string) (database.CreateFeedFollowRow, error) {
+	var feedFollow database.CreateFeedFollowRow
+
+	feed, err := s.db.GetFeedByUrl(context.Background(), url)
+	if err != nil {
+		return feedFollow, err
+	}
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return feedFollow, err
+	}
+
+	params := database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		UserID: user.ID,
+		FeedID: feed.ID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	feedFollow, err = s.db.CreateFeedFollow(context.Background(), params)
+	if err != nil {
+		return feedFollow, err
+	}
+
+	return feedFollow, nil
 }
