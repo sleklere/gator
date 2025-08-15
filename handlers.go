@@ -148,3 +148,20 @@ func addFeedHandler(s *state, cmd command) error {
 
 	return nil
 }
+
+func listFeedsHandler(s *state, cmd command) error {
+	feeds, err := s.db.ListFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("feeds: ")
+	for _, f := range feeds {
+		fmt.Printf("name: %s\n", f.Name)
+		fmt.Printf("url: %s\n", f.Url)
+		fmt.Printf("user: %s\n", f.UserName)
+		fmt.Println("--------")
+	}
+
+	return nil
+}
