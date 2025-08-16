@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sleklere/gator/internal/database"
-	"github.com/sleklere/gator/internal/feed"
 )
 
 func loginHandler(s *state, cmd command) error {
@@ -215,6 +215,41 @@ func unfollowHandler(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+func browseHandler(s *state, cmd command, user database.User) error {
+	var limit int32 = 2
+
+	if len(cmd.args) > 0 && cmd.args[0] != "" {
+		parsedLimit, err := strconv.ParseInt(cmd.args[0], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		limit = int32(parsedLimit)
+	}
+
+	params := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit: limit,
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), params)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("posts len: %d", len(posts))
+
+	for _, p := range posts {
+		description := "No description"
+		if p.Description.Valid {
+			description = p.Description.String
+		}
+		fmt.Printf("* %s (%s) - %s\n", p.Title, p.PublishedAt.Format("Jan 2"), description)
+	}
+
+	return nil
+}
+
 func createFeedFollowByUrl(s *state, url string, user database.User) (database.CreateFeedFollowRow, error) {
 	var feedFollow database.CreateFeedFollowRow
 
@@ -239,26 +274,3 @@ func createFeedFollowByUrl(s *state, url string, user database.User) (database.C
 	return feedFollow, nil
 }
 
-
-func scrapeFeeds(s *state) error {
-	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
-	if err != nil {
-		return err
-	}
-
-	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
-	if err != nil {
-		return err
-	}
-
-	feedRes, err := feed.FetchFeed(context.Background(), nextFeed.Url)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range feedRes.Channel.Item {
-		fmt.Println(item.Title)
-	}
-
-	return nil
-}
